@@ -1,120 +1,26 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-
-const locale = ref('en')
-const singers = ref<any[]>([])
-
-const { locale: i18nLocale } = useI18n()
-
-const fetchSingers = async () => {
-  const res = await fetch(`http://localhost:1337/api/singers?locale=${locale.value}&populate=*`)
-  const json = await res.json()
-  singers.value = json.data
-}
-
-onMounted(fetchSingers)
-
-watch(locale, (newLocale) => {
-  i18nLocale.value = newLocale
-  fetchSingers()
-})
+import Navbar from './components/NavBar.vue'
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
-
-    <div class="wrapper">
-      <div>
-        <label for="lang">{{ $t('language') }}:</label>
-        <select id="lang" v-model="locale">
-          <option value="en">English</option>
-          <option value="es">Español</option>
-          <option value="de">Deutsch</option>
-        </select>
-      </div>
-
-      <ul>
-        <li v-for="singer in singers" :key="singer.id">
-          🎤 <strong>{{ singer.name }}</strong
-          ><br />
-          🌍 {{ $t('nationality') }}: {{ singer.nationality?.map((n: any) => n.name).join(', ')
-          }}<br />
-          🏙️ {{ $t('birthPlace') }}:
-          {{ singer.birth_place?.name }}
-        </li>
-      </ul>
-
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
-    </div>
-  </header>
-
-  <RouterView />
+  <div class="app-layout">
+    <Navbar />
+    <main class="content">
+      <RouterView />
+    </main>
+  </div>
 </template>
 
 <style scoped>
-header {
-  line-height: 1.5;
-  max-height: 100vh;
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
-
-nav {
-  width: 100%;
-  font-size: 12px;
-  text-align: center;
-  margin-top: 2rem;
-}
-
-nav a.router-link-exact-active {
-  color: var(--color-text);
-}
-
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
-}
-
-nav a {
-  display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
-}
-
-nav a:first-of-type {
-  border: 0;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  nav {
-    text-align: left;
-    margin-left: -1rem;
-    font-size: 1rem;
-    padding: 1rem 0;
-    margin-top: 1rem;
-  }
+.content {
+  flex: 1;
+  padding: 2rem;
+  background-color: #f9f9f9;
 }
 </style>
