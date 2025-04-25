@@ -1,6 +1,29 @@
 <template>
+  <div>
+    <h3>Galería</h3>
+    <Swiper
+      v-if="getField('gallery')?.length"
+      :slides-per-view="2"
+      :space-between="16"
+      :loop="true"
+      :autoplay="{ delay: 3000, disableOnInteraction: false }"
+      :speed="800"
+      :pagination="false"
+      class="gallery-swiper"
+      :breakpoints="{
+        768: { slidesPerView: 2 },
+        1024: { slidesPerView: 3 },
+      }"
+    >
+      <SwiperSlide v-for="image in getField('gallery')" :key="image.id">
+        <img :src="image.formats?.small?.url || image.url" :alt="image.name" class="swiper-img" />
+      </SwiperSlide>
+    </Swiper>
+    <p v-else>No disponible</p>
+  </div>
+
   <div v-if="singer">
-    <h1>{{ getField('name') }}</h1>
+    <h1>{{ getField('name') }} {{ getField('last_name') }}</h1>
 
     <img
       v-if="getField('profile_image')?.formats?.small?.url"
@@ -14,14 +37,14 @@
       {{
         getField('nationality')
           ?.map((n: any) => n.name)
-          .join(', ') || 'No disponible en este idioma'
+          .join(', ') || 'No disponible'
       }}
     </p>
     <p>
       <strong>Lugar de nacimiento:</strong>
-      {{ getField('birth_place')?.name || 'No disponible en este idioma' }}
+      {{ getField('birth_place')?.name || 'No disponible' }}
     </p>
-    <p><strong>Voz:</strong> {{ getField('voice')?.title || 'No disponible en este idioma' }}</p>
+    <p><strong>Voz:</strong> {{ getField('voice')?.title || 'No disponible' }}</p>
 
     <div v-if="hasAnySocialLink()">
       <h3>Redes sociales</h3>
@@ -49,21 +72,7 @@
           <p>{{ block.children[0]?.text }}</p>
         </div>
       </div>
-      <p v-else>No disponible en este idioma</p>
-    </div>
-
-    <div>
-      <h3>Galería</h3>
-      <div v-if="getField('gallery')?.length" class="gallery">
-        <img
-          v-for="image in getField('gallery')"
-          :key="image.id"
-          :src="image.formats?.thumbnail?.url || image.url"
-          :alt="image.name"
-          class="gallery-img"
-        />
-      </div>
-      <p v-else>No disponible en este idioma</p>
+      <p v-else>No disponible</p>
     </div>
   </div>
 
@@ -74,6 +83,17 @@
 import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { Swiper, SwiperSlide } from 'swiper/vue'
+import { Autoplay } from 'swiper/modules'
+import SwiperCore from 'swiper'
+
+// Activar el módulo Autoplay
+SwiperCore.use([Autoplay])
+
+import 'swiper/css'
+// Solo si usas navegación o paginación visual
+// import 'swiper/css/navigation'
+// import 'swiper/css/pagination'
 
 const route = useRoute()
 const { locale } = useI18n()
@@ -83,14 +103,12 @@ const fallback = ref<any | null>(null)
 const fetchSinger = async () => {
   const slug = route.params.slug
 
-  // idioma actual
   const res = await fetch(
     `http://localhost:1337/api/singers?populate=*&filters[slug][$eq]=${slug}&locale=${locale.value}`,
   )
   const data = await res.json()
   singer.value = data.data[0] || null
 
-  // fallback por defecto: inglés
   if (locale.value !== 'en') {
     const fallbackRes = await fetch(
       `http://localhost:1337/api/singers?populate=*&filters[slug][$eq]=${slug}&locale=en`,
@@ -126,14 +144,14 @@ watch(locale, fetchSinger)
   margin: 1rem 0;
   border-radius: 8px;
 }
-.gallery {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
+.gallery-swiper {
+  width: 100%;
+  margin: 1rem 0;
 }
-.gallery-img {
-  width: 150px;
-  height: auto;
+.swiper-img {
+  width: 100%;
+  height: 250px;
+  object-fit: cover;
   border-radius: 8px;
 }
 </style>

@@ -16,7 +16,7 @@
           alt="Foto"
           class="img"
         />
-        <h3>{{ singer.name }}</h3>
+        <h3>{{ singer.name }} {{ singer.last_name }}</h3>
         <p>
           <strong>{{ pageData?.nationality_text || 'Nacionalidad' }}:</strong>
           {{ singer.nationality[0]?.name }}
