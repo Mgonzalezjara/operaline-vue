@@ -5,6 +5,7 @@ import SingerSingle from '@/views/SingerSingle.vue'
 import LoginPage from '@/views/LoginPage.vue'
 import Profile from '@/views/Profile.vue'
 import { useAuthStore } from '@/stores/authStore'
+import Register from '@/views/Register.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -23,6 +24,11 @@ const router = createRouter({
       path: '/login',
       name: 'LoginPage',
       component: LoginPage,
+    },
+    {
+      path: '/register',
+      name: 'Register',
+      component: Register,
     },
     {
       path: '/profile',

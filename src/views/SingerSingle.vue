@@ -1,78 +1,93 @@
 <template>
-  <div>
-    <h3>Galería</h3>
-    <Swiper
-      v-if="getField('gallery')?.length"
-      :slides-per-view="2"
-      :space-between="16"
-      :loop="true"
-      :autoplay="{ delay: 3000, disableOnInteraction: false }"
-      :speed="800"
-      :pagination="false"
-      class="gallery-swiper"
-      :breakpoints="{
-        768: { slidesPerView: 2 },
-        1024: { slidesPerView: 3 },
-      }"
-    >
-      <SwiperSlide v-for="image in getField('gallery')" :key="image.id">
-        <img :src="image.formats?.small?.url || image.url" :alt="image.name" class="swiper-img" />
-      </SwiperSlide>
-    </Swiper>
-    <p v-else>No disponible</p>
-  </div>
-
   <div v-if="singer">
-    <h1>{{ getField('name') }} {{ getField('last_name') }}</h1>
+    <h1>{{ singer.name }} {{ singer.last_name }}</h1>
 
-    <img
-      v-if="getField('profile_image')?.formats?.small?.url"
-      :src="getField('profile_image').formats.small.url"
-      alt="Foto"
-      class="img"
-    />
-
-    <p>
-      <strong>Nacionalidad:</strong>
-      {{
-        getField('nationality')
-          ?.map((n: any) => n.name)
-          .join(', ') || 'No disponible'
-      }}
-    </p>
-    <p>
-      <strong>Lugar de nacimiento:</strong>
-      {{ getField('birth_place')?.name || 'No disponible' }}
-    </p>
-    <p><strong>Voz:</strong> {{ getField('voice')?.title || 'No disponible' }}</p>
-
-    <div v-if="hasAnySocialLink()">
-      <h3>Redes sociales</h3>
-      <ul>
-        <li v-if="getField('instagram')">
-          Instagram:
-          <a :href="getField('instagram')" target="_blank">{{ getField('instagram') }}</a>
-        </li>
-        <li v-if="getField('twitter')">
-          Twitter: <a :href="getField('twitter')" target="_blank">{{ getField('twitter') }}</a>
-        </li>
-        <li v-if="getField('facebook')">
-          Facebook: <a :href="getField('facebook')" target="_blank">{{ getField('facebook') }}</a>
-        </li>
-        <li v-if="getField('website')">
-          Sitio web: <a :href="getField('website')" target="_blank">{{ getField('website') }}</a>
-        </li>
-      </ul>
+    <!-- Galería -->
+    <div v-if="singer.gallery?.length">
+      <Swiper
+        :slides-per-view="2"
+        :space-between="16"
+        :loop="true"
+        :autoplay="{ delay: 3000, disableOnInteraction: false }"
+        class="gallery-swiper"
+      >
+        <SwiperSlide v-for="image in singer.gallery" :key="image.id">
+          <img :src="image.formats?.small?.url || image.url" :alt="image.name" class="swiper-img" />
+        </SwiperSlide>
+      </Swiper>
     </div>
 
-    <div>
+    <!-- Foto perfil -->
+    <img
+      v-if="singer.profile_image?.formats?.small?.url"
+      :src="singer.profile_image.formats.small.url"
+      alt="Foto de perfil"
+      class="profile-img"
+    />
+
+    <!-- Información Reactiva y localizada -->
+    <div class="info">
+      <p v-if="singer.nationality?.length">
+        <strong>Nacionalidad:</strong> {{ getNationalities(singer.nationality) }}
+      </p>
+
+      <p v-if="singer.birth_place">
+        <strong>Lugar de nacimiento:</strong> {{ getCountryName(singer.birth_place.documentId) }}
+      </p>
+
+      <p v-if="singer.voice">
+        <strong>Voz:</strong> {{ getVoiceTypeName(singer.voice.documentId) }}
+      </p>
+
+      <div class="socials" v-if="hasSocials">
+        <p><strong>Redes sociales:</strong></p>
+        <ul>
+          <li v-if="singer.instagram">
+            <a :href="singer.instagram" target="_blank">Instagram</a>
+          </li>
+          <li v-if="singer.twitter">
+            <a :href="singer.twitter" target="_blank">Twitter</a>
+          </li>
+          <li v-if="singer.facebook">
+            <a :href="singer.facebook" target="_blank">Facebook</a>
+          </li>
+          <li v-if="singer.website">
+            <a :href="singer.website" target="_blank">Website</a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Organizaciones reactivas y localizadas -->
+      <div v-if="singer.organizations?.length">
+        <p><strong>Organizaciones:</strong></p>
+        <ul>
+          <li v-for="org in singer.organizations" :key="org.id">
+            {{ getOrganizationName(org.documentId) }} -
+            <a :href="org.website" target="_blank">{{ org.website }}</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Biografía -->
+    <div class="biography-section">
       <h3>Biografía</h3>
-      <div v-if="getField('biography')?.length">
-        <div v-for="(block, index) in getField('biography')" :key="index">
+      <div class="bio-tabs">
+        <button
+          v-for="lang in languages"
+          :key="lang.code"
+          :class="{ active: activeLang === lang.code }"
+          @click="manualLanguageChange(lang.code)"
+        >
+          <span class="flag">{{ lang.flag }}</span> {{ lang.label }}
+        </button>
+      </div>
+      <div v-if="currentBiography?.length">
+        <div v-for="(block, index) in currentBiography" :key="index">
           <p>{{ block.children[0]?.text }}</p>
         </div>
       </div>
-      <p v-else>No disponible</p>
+      <p v-else>No disponible en este idioma.</p>
     </div>
   </div>
 
@@ -80,56 +95,78 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Swiper, SwiperSlide } from 'swiper/vue'
-import { Autoplay } from 'swiper/modules'
-import SwiperCore from 'swiper'
-
-// Activar el módulo Autoplay
-SwiperCore.use([Autoplay])
-
 import 'swiper/css'
-// Solo si usas navegación o paginación visual
-// import 'swiper/css/navigation'
-// import 'swiper/css/pagination'
+import { useEntities } from '@/composables/useEntities'
 
 const route = useRoute()
 const { locale } = useI18n()
-const singer = ref<any | null>(null)
-const fallback = ref<any | null>(null)
+
+const singer = ref<any>(null)
+const { fetchEntities, getCountryName, getOrganizationName, getVoiceTypeName } = useEntities()
+
+const languages = [
+  { code: 'en', label: 'Inglés', flag: '🇬🇧' },
+  { code: 'de', label: 'Alemán', flag: '🇩🇪' },
+  { code: 'es', label: 'Español', flag: '🇪🇸' },
+]
+
+const activeLang = ref('en')
+const manualOverride = ref(false)
 
 const fetchSinger = async () => {
   const slug = route.params.slug
-
-  const res = await fetch(
-    `http://localhost:1337/api/singers?populate=*&filters[slug][$eq]=${slug}&locale=${locale.value}`,
-  )
+  const res = await fetch(`http://localhost:1337/api/singers?populate=*&filters[slug][$eq]=${slug}`)
   const data = await res.json()
   singer.value = data.data[0] || null
+}
 
-  if (locale.value !== 'en') {
-    const fallbackRes = await fetch(
-      `http://localhost:1337/api/singers?populate=*&filters[slug][$eq]=${slug}&locale=en`,
-    )
-    const fallbackData = await fallbackRes.json()
-    fallback.value = fallbackData.data[0] || null
-  } else {
-    fallback.value = null
+const currentBiography = computed(() => {
+  if (!singer.value?.biography_text?.length) return null
+  const langIndex = { en: 0, de: 1, es: 2 }[activeLang.value] || 0
+  return singer.value.biography_text[langIndex]?.biography_text ?? null
+})
+
+const initActiveLanguage = () => {
+  const browserLang = locale.value.slice(0, 2)
+  activeLang.value = ['es', 'de', 'en'].includes(browserLang) ? browserLang : 'en'
+}
+
+const manualLanguageChange = (lang: string) => {
+  activeLang.value = lang
+  manualOverride.value = true
+}
+
+watch(locale, (newLocale) => {
+  if (!manualOverride.value) {
+    const newLang = newLocale.slice(0, 2)
+    activeLang.value = ['es', 'de', 'en'].includes(newLang) ? newLang : 'en'
   }
+})
+
+const hasSocials = computed(
+  () =>
+    singer.value?.instagram ||
+    singer.value?.twitter ||
+    singer.value?.facebook ||
+    singer.value?.website,
+)
+
+// Maneja múltiples nacionalidades reactivas
+const getNationalities = (nationalities: any[]) => {
+  return nationalities.map((n) => getCountryName(n.documentId)).join(', ') || 'No disponible'
 }
 
-const getField = (field: string) => {
-  return singer.value?.[field] ?? fallback.value?.[field] ?? null
-}
+onMounted(async () => {
+  await fetchEntities()
+  initActiveLanguage()
+  await fetchSinger()
+})
 
-const hasAnySocialLink = () => {
-  return ['instagram', 'twitter', 'facebook', 'website'].some((field) => getField(field))
-}
-
-onMounted(fetchSinger)
-watch(locale, fetchSinger)
+watch(locale, fetchEntities)
 </script>
 
 <style scoped>
@@ -137,8 +174,8 @@ watch(locale, fetchSinger)
   text-align: center;
   margin-top: 2rem;
 }
-.img {
-  width: 300px;
+.profile-img {
+  width: 250px;
   max-width: 100%;
   height: auto;
   margin: 1rem 0;
@@ -146,12 +183,49 @@ watch(locale, fetchSinger)
 }
 .gallery-swiper {
   width: 100%;
-  margin: 1rem 0;
+  margin: 1rem 0 2rem 0;
 }
 .swiper-img {
   width: 100%;
   height: 250px;
   object-fit: cover;
   border-radius: 8px;
+}
+.info {
+  margin-bottom: 2rem;
+}
+.socials ul,
+.info ul {
+  list-style: none;
+  padding: 0;
+}
+.socials ul li,
+.info ul li {
+  margin: 0.5rem 0;
+}
+.biography-section {
+  margin-top: 2rem;
+}
+.bio-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 1rem;
+}
+.bio-tabs button {
+  padding: 0.5rem 1rem;
+  background: #ccc;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bio-tabs button.active {
+  background: #c82333;
+  color: white;
+}
+.flag {
+  font-size: 1.2rem;
 }
 </style>
